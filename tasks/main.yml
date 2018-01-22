@@ -1,0 +1,104 @@
+---
+
+# General environment
+
+- name: set locale
+  locale_gen:
+    name: "{{ language }}"
+    state: present
+  tags:
+    - archlinux
+    - setup
+    - locale
+
+- name: set language
+  shell: localectl set-locale LANG={{ language }}
+  tags:
+    - archlinux
+    - setup
+    - locale
+
+- name: update timezone
+  shell: timedatectl set-timezone {{ timezone }}
+  tags:
+    - archlinux
+    - setup
+    - time
+
+- name: ensure time is sync
+  shell: timedatectl set-ntp true
+  tags:
+    - archlinux
+    - setup
+    - time
+
+- name: change hostname
+  shell: hostname {{ hostname }}
+  tags:
+    - archlinux
+    - setup
+    - hostname
+
+- name: add hostname to local DNS
+  blockinfile:
+    path: /etc/hosts
+    block: |
+      127.0.1.1	{{ hostname }}.localdomain	{{ hostname }}
+  tags:
+    - archlinux
+    - setup
+    - hostname
+
+- name: Ensure that services are running
+  service:
+    name: "{{ item }}"
+    state: started
+    enabled: yes
+  with_items: "{{ services }}"
+  tags:
+    - archlinux
+    - setup
+    - service
+
+- name: create a new user
+  user:
+    name: "{{ username }}"
+    shell: /bin/bash
+    generate_ssh_key: yes
+    ssh_key_bits: 2048
+    ssh_key_file: .ssh/id_rsa
+  tags:
+    - archlinux
+    - setup
+    - user
+
+- name: Make sure we have a 'wheel' group
+  group:
+    name: wheel
+    state: present
+  tags:
+    - archlinux
+    - setup
+    - user
+
+- name: Allow 'wheel' group to have passwordless sudo
+  lineinfile:
+    dest: /etc/sudoers
+    state: present
+    regexp: '^%wheel'
+    line: '%wheel ALL=(ALL) NOPASSWD: ALL'
+    validate: visudo -cf %s
+  tags:
+    - archlinux
+    - setup
+    - user
+
+- name: Add sudoers users to wheel group
+  user:
+    name: "{{ username }}"
+    groups: wheel
+    append: yes
+  tags:
+    - archlinux
+    - setup
+    - user
